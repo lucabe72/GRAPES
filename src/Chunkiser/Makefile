@@ -17,6 +17,9 @@ OBJS = input-stream.o           \
 
 ifdef FFDIR
 OBJS += input-stream-avf.o input-stream-ipb.o output-stream-avf.o
+ifdef GTK
+OBJS += output-stream-play.o
+endif
 endif
 
 all: libchunkiser.a
@@ -25,4 +28,8 @@ include $(BASE)/src/utils.mak
 ifdef FFDIR
 CPPFLAGS += -I$(FFDIR)
 CPPFLAGS += -DAVF
+ifdef GTK
+CPPFLAGS += `pkg-config --cflags gtk+-2.0`
+CPPFLAGS += -DGTK
+endif
 endif

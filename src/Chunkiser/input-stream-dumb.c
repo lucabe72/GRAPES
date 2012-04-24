@@ -20,8 +20,11 @@ struct chunkiser_ctx {
   int loop;	//loop on input file infinitely
   int chunk_size;
   int fds[2];
+  int bitrate; // video bitrate
+  long long int total_size; // video total size
 };
 #define DEFAULT_CHUNK_SIZE 2 * 1024
+#define DEFAULT_BITRATE 1200 
 
 static struct chunkiser_ctx *dumb_open(const char *fname, int *period, const char *config)
 {
@@ -44,12 +47,14 @@ static struct chunkiser_ctx *dumb_open(const char *fname, int *period, const cha
 
   *period = 0;
   res->chunk_size = DEFAULT_CHUNK_SIZE;
+  res -> bitrate = DEFAULT_BITRATE;
   cfg_tags = config_parse(config);
   if (cfg_tags) {
     const char *access_mode;
 
     config_value_int(cfg_tags, "loop", &res->loop);
     config_value_int(cfg_tags, "chunk_size", &res->chunk_size);
+    config_value_int(cfg_tags, "bitrate", &res->bitrate);
     access_mode = config_value_str(cfg_tags, "mode");
     if (access_mode && !strcmp(access_mode, "nonblock")) {
       fcntl(res->fds[0], F_SETFL, O_NONBLOCK);
@@ -76,7 +81,7 @@ static uint8_t *dumb_chunkise(struct chunkiser_ctx *s, int id, int *size, uint64
 
     return NULL;
   }
-  *ts = 0;
+  *ts = ((s->total_size)*8000)/(s->bitrate); // change timestamp of the chunk
   *size = read(s->fds[0], res, s->chunk_size);
   if ((*size == 0) && (errno != EAGAIN)) {
     *size = -1;
@@ -88,6 +93,7 @@ static uint8_t *dumb_chunkise(struct chunkiser_ctx *s, int id, int *size, uint64
     free(res);
     res = NULL;
   }
+  s->total_size += *size;
 
   return res;
 }

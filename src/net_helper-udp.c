@@ -28,6 +28,7 @@
 struct nodeID {
   struct sockaddr_in addr;
   int fd;
+  uint8_t *m_seq;
 };
 
 int wait4data(const struct nodeID *s, struct timeval *tout, int *user_fds)
@@ -76,6 +77,7 @@ struct nodeID *create_node(const char *IPaddr, int port)
 
   s = malloc(sizeof(struct nodeID));
   memset(s, 0, sizeof(struct nodeID));
+  s->m_seq = malloc(1);
   s->addr.sin_family = AF_INET;
   s->addr.sin_port = htons(port);
   res = inet_aton(IPaddr, &s->addr.sin_addr);
@@ -145,7 +147,8 @@ int send_to_peer(const struct nodeID *from, struct nodeID *to, const uint8_t *bu
   msg.msg_iovlen = 2;
   msg.msg_iov = iov;
 
-  my_hdr.m_seq++;
+  *from->m_seq = *from->m_seq + 1;
+  my_hdr.m_seq = *from->m_seq;
   my_hdr.frags = (buffer_size / (MAX_MSG_SIZE)) + 1;
   my_hdr.frag_seq = 0;
 
@@ -190,6 +193,7 @@ int recv_from_peer(const struct nodeID *local, struct nodeID **remote, uint8_t *
   if (*remote == NULL) {
     return -1;
   }
+  memset(remote, 0, sizeof(struct nodeID));
 
   recv = 0;
   m_seq = -1;
@@ -270,6 +274,7 @@ struct nodeID *nodeid_undump(const uint8_t *b, int *len)
   struct nodeID *res;
   res = malloc(sizeof(struct nodeID));
   if (res != NULL) {
+    memset(res, 0, sizeof(struct nodeID));
     memcpy(&res->addr, b, sizeof(struct sockaddr_in));
     res->fd = -1;
   }
@@ -280,6 +285,7 @@ struct nodeID *nodeid_undump(const uint8_t *b, int *len)
 
 void nodeid_free(struct nodeID *s)
 {
+  free(s->m_seq);
   free(s);
 }
 
